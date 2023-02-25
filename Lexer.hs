@@ -22,6 +22,7 @@ data Token = TInt Int
 -- LEXING --
 ------------
 
+-- returns the token equivalent of a given string granted that the string has no whitespace
 toToken :: String -> Token
 toToken s = case s of
              "("  -> TLParen
@@ -47,6 +48,8 @@ toToken s = case s of
    asTChar   = TChar . head . tail
    asTSymbol = TSymbol
 
+-- splits a string around a passed character
+-- ex: splitAround 'c' "crustacian" -> ["c", "rusta", "c", "ian"]
 splitAround :: Char -> String -> [String]
 splitAround c "" = []
 splitAround c s@(x:xs)
@@ -54,10 +57,13 @@ splitAround c s@(x:xs)
   | otherwise = let (p, r) = break (== c) s
                  in [p] ++ splitAround c r
 
+-- splits a string around the multiple passed characters
+-- ex: splitAround ['c', 's'] "crustacian" -> ["c", "ru", "s", "ta", "c", "ian"]
 splitAroundAll :: [Char] -> String -> [String]
 splitAroundAll [] s     = [s]
 splitAroundAll (c:cs) s = splitAround c s >>= splitAroundAll cs
 
+-- returns a list of tokens in the string
 tokenize :: String -> [Token]
 tokenize s = words s >>= (map toToken 
                         . splitAroundAll ['(', ')', '[', ']'])
