@@ -2,6 +2,7 @@ module Lexer (Token
             , tokenize) where
 
 import Data.Char
+import Data.List
 
 ----------
 -- DATA --
@@ -16,6 +17,7 @@ data Token = TInt Int
            | TQuack
            | TDefn
            | TSymbol String
+           | TNewLine
   deriving (Show, Eq)
 
 ------------
@@ -63,8 +65,12 @@ splitAroundAll :: [Char] -> String -> [String]
 splitAroundAll [] s     = [s]
 splitAroundAll (c:cs) s = splitAround c s >>= splitAroundAll cs
 
--- returns a list of tokens in the string
+-- returns a list of tokens in the string for a single line
+tokenizeLine :: String -> [Token]
+tokenizeLine s = words s >>= (map toToken 
+                            . splitAroundAll ['(', ')', '[', ']'])
+
+-- returns the list of tokens in the string for the whole document
 tokenize :: String -> [Token]
-tokenize s = words s >>= (map toToken 
-                        . splitAroundAll ['(', ')', '[', ']'])
-        
+tokenize = intercalate [TNewLine] . map tokenizeLine . lines 
+
