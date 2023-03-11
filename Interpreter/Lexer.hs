@@ -1,9 +1,10 @@
-module Lexer (Token
+module Lexer (Token (..)
             , tokenize) where
 
 import Data.Char
-import Data.List
 import Control.Monad
+
+import ListOperations
 
 ----------
 -- DATA --
@@ -47,20 +48,6 @@ toToken s = case s of
 
    asTInt    = TInt . read
    asTChar   = TChar . head . tail
-
--- splits a string around a passed character
--- ex: splitAround 'c' "crustacian" -> ["c", "rusta", "c", "ian"]
-splitAround :: Char -> String -> [String]
-splitAround c "" = []
-splitAround c s@(x:xs)
-  | x == c    = [c] : splitAround c xs
-  | otherwise = let (p, r) = break (== c) s
-                 in p : splitAround c r
-
--- splits a string around the multiple passed characters
--- ex: splitAround ['c', 's'] "crustacian" -> ["c", "ru", "s", "ta", "c", "ian"]
-splitAroundAll :: [Char] -> String -> [String]
-splitAroundAll = foldr ((>=>) . splitAround) return
 
 -- returns a list of tokens in the string for a single line
 tokenizeLine :: String -> [Token]
