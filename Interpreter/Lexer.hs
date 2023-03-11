@@ -3,6 +3,7 @@ module Lexer (Token
 
 import Data.Char
 import Data.List
+import Control.Monad
 
 ----------
 -- DATA --
@@ -17,7 +18,6 @@ data Token = TInt Int
            | TQuack
            | TDefn
            | TSymbol String
-           | TNewLine
   deriving (Show, Eq)
 
 ------------
@@ -34,43 +34,39 @@ toToken s = case s of
              "!"  -> TQuack
              ":=" -> TDefn
              x
-              | isTInt x    -> asTInt x
-              | isTChar x   -> asTChar x
-              | isTSymbol x -> asTSymbol x
+              | isTInt x  -> asTInt x
+              | isTChar x -> asTChar x
+              | otherwise -> TSymbol x
  where
-   isTInt, isTChar, isTSymbol :: String -> Bool
-   asTInt, asTChar, asTSymbol :: String -> Token
+   isTInt, isTChar :: String -> Bool
+   asTInt, asTChar :: String -> Token
 
-   isTInt              = and . map isDigit
-   isTChar ('\'':c:[]) = True
+   isTInt              = all isDigit
+   isTChar ['\'', c] = True
    isTChar _           = False
-   isTSymbol _         = True
 
    asTInt    = TInt . read
    asTChar   = TChar . head . tail
-   asTSymbol = TSymbol
 
 -- splits a string around a passed character
 -- ex: splitAround 'c' "crustacian" -> ["c", "rusta", "c", "ian"]
 splitAround :: Char -> String -> [String]
 splitAround c "" = []
 splitAround c s@(x:xs)
-  | x == c    = [[c]] ++ splitAround c xs
+  | x == c    = [c] : splitAround c xs
   | otherwise = let (p, r) = break (== c) s
-                 in [p] ++ splitAround c r
+                 in p : splitAround c r
 
 -- splits a string around the multiple passed characters
 -- ex: splitAround ['c', 's'] "crustacian" -> ["c", "ru", "s", "ta", "c", "ian"]
 splitAroundAll :: [Char] -> String -> [String]
-splitAroundAll [] s     = [s]
-splitAroundAll (c:cs) s = splitAround c s >>= splitAroundAll cs
+splitAroundAll = foldr ((>=>) . splitAround) return
 
 -- returns a list of tokens in the string for a single line
 tokenizeLine :: String -> [Token]
-tokenizeLine s = words s >>= (map toToken 
-                            . splitAroundAll ['(', ')', '[', ']'])
+tokenizeLine = map toToken . (splitAroundAll "()[]" <=< words)
 
--- returns the list of tokens in the string for the whole document
-tokenize :: String -> [Token]
-tokenize = intercalate [TNewLine] . map tokenizeLine . lines 
+-- returns a list of tokens for each line in the whole document
+tokenize :: String -> [[Token]]
+tokenize = map tokenizeLine . lines 
 
