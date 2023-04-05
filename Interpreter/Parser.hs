@@ -1,6 +1,6 @@
 module Parser where
 
-import Data.List.Split
+import Data.List.Extra
 
 import Lexer
 
@@ -39,9 +39,41 @@ data Value = VInteger Int
 -- PARSING --
 -------------
 
--- TODO: write parseExpressions
+-- Parses all of the expressions in the list of tokens given
 parseExpressions :: [Token] -> [Value]
-parseExpressions = undefined
+parseExpressions = repeatedly parseExpression
+
+-- Takes in a list of tokens, reads the first value, and then returns the remaining tokens
+parseExpression :: [Token] -> (Value, [Token])
+parseExpression []     = error "no expression to read"
+parseExpression (t:ts) = case t of
+                           TInt i    -> (VInteger i, ts)
+                           TChar c   -> (VChar c, ts)
+                           TLParen   -> parseFunction ts
+                           TRParen   -> error "unexpected right parenthesis"
+                           TLBracket -> parseStack ts
+                           TRBracket -> error "unexpected right bracket"
+                           TDefn     -> error "unexpected defintion in expression"
+                           TQuack    -> (VQuack, ts)
+                           TSymbol s -> (VSymbol s, ts)
+  where
+    parseFunction :: [Token] -> (Value, [Token])
+    parseFunction = parseFnSt True []
+
+    parseStack :: [Token] -> (Value, [Token])
+    parseStack = parseFnSt False []
+
+    -- Given if the thing being parsed is a function, an accumulator of values (in reverse), 
+    -- and a list of tokens, this function produces the value read and the unread tokens 
+    parseFnSt :: Bool -> [Value] -> [Token] -> (Value, [Token])
+    parseFnSt isFn vs ts = case ts of
+                             [] -> error $ "expected closing right " 
+                                        ++ (if isFn then "parenthesis" else "bracket")
+                             (t: ts')
+                               | isFn     && (t == TRParen)   -> (VFunction $ reverse vs, ts')
+                               | not isFn && (t == TRBracket) -> (VStack $ reverse vs, ts')
+                             _ -> let (v, ts') = parseExpression ts in
+                                      parseFnSt isFn (v : vs) ts' 
 
 -- Parses the list of lines to produce a program data
 parse :: [[Token]] -> Program
