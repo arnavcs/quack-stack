@@ -1,4 +1,10 @@
-module Parser where
+module Parser (Program (..)
+             , Environment
+             , Definition
+             , Stack
+             , Symbol
+             , Value (..)
+             , parse) where
 
 import Data.List.Extra
 
@@ -16,8 +22,7 @@ data Program = Program Environment [Stack]
 type Environment = [Definition]
 
 -- A definition is identified by the symbol it is bound to, and the replacement to be made
-data Definition = Definition Symbol [Value]
-  deriving (Show, Eq)
+type Definition = (Symbol, [Value])
 
 -- A stack is a list of values
 type Stack = [Value]
@@ -38,6 +43,33 @@ data Value = VInteger Int
 -------------
 -- PARSING --
 -------------
+
+-- Parses the list of lines to produce a program data
+parse :: [[Token]] -> Program
+parse = foldr parseLine (Program [] [])
+
+-- Parses each line and adds to the environment and the list of expressions in the program
+parseLine :: [Token] -> Program -> Program
+parseLine line (Program env exprs)
+  | isDefn line = Program (parseDefinition line : env) exprs
+  | isExpr line = case parseExpressions line of
+                    [VStack s] -> Program env (exprs ++ [s])
+                    _          -> undefined
+  | otherwise   = undefined
+  where
+    -- Is the line a defintion
+    isDefn :: [Token] -> Bool
+    isDefn = elem TDefn
+
+    -- Is the line an expression
+    isExpr :: [Token] -> Bool
+    isExpr tknLst = head tknLst == TLBracket && last tknLst == TRBracket
+
+-- Parses the given line and returns a definition
+parseDefinition :: [Token] -> Definition
+parseDefinition tknLst = case splitOn [TDefn] tknLst of
+                           [[TSymbol name], tkns] -> (name, parseExpressions tkns)
+                           _                      -> undefined
 
 -- Parses all of the expressions in the list of tokens given
 parseExpressions :: [Token] -> [Value]
@@ -74,31 +106,4 @@ parseExpression (t:ts) = case t of
                                | not isFn && (t == TRBracket) -> (VStack $ reverse vs, ts')
                              _ -> let (v, ts') = parseExpression ts in
                                       parseFnSt isFn (v : vs) ts' 
-
--- Parses the list of lines to produce a program data
-parse :: [[Token]] -> Program
-parse = foldr parseLine (Program [] [])
-
--- Parses each line and adds to the environment and the list of expressions in the program
-parseLine :: [Token] -> Program -> Program
-parseLine line (Program env exprs)
-  | isDefn line = Program (parseDefinition line : env) exprs
-  | isExpr line = case parseExpressions line of
-                    [VStack s] -> Program env (exprs ++ [s])
-                    _          -> undefined
-  | otherwise   = undefined
-  where
-    -- Is the line a defintion
-    isDefn :: [Token] -> Bool
-    isDefn = elem TDefn
-
-    -- Is the line an expression
-    isExpr :: [Token] -> Bool
-    isExpr tknLst = head tknLst == TLBracket && last tknLst == TRBracket
-
--- Parses the given line and returns a definition
-parseDefinition :: [Token] -> Definition
-parseDefinition tknLst = case splitOn [TDefn] tknLst of
-                           [[TSymbol name], tkns] -> Definition name $ parseExpressions tkns
-                           _                      -> undefined
 
